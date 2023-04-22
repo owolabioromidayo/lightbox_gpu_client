@@ -1,6 +1,7 @@
-import os, sys, json, random, base64, copy,  gc
+import os, sys, json, random, base64, copy,  gc, shutil
 from PIL import Image
 import numpy as np
+
 
 import torch
 from torch import autocast
@@ -257,6 +258,7 @@ class ModelBroadcast:
             model_id, 
             torch_dtype=torch.float16, 
             revision="fp16", 
+            safety_checker= None
         ).to(device)
 
         pipe.enable_attention_slicing()
@@ -273,6 +275,7 @@ class ModelBroadcast:
             torch_dtype=torch.float16, 
             scheduler=scheduler,
             # revision="fp16", 
+            safety_checker= None
         )
         pipe = pipe.to(device)
         pipe.enable_attention_slicing()
@@ -322,7 +325,7 @@ class ModelBroadcast:
     def run_sd(self,_json):
         pipe = self.init_sd()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = _json["iters"]
 
         folder_name = prompt.replace(" ", "_")
@@ -350,14 +353,15 @@ class ModelBroadcast:
         torch.cuda.empty_cache()
 
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded
 
 
     def run_analog_diffusion(self,_json):
         pipe = self.init_sd_analog()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = _json["iters"]
 
         folder_name = prompt.replace(" ", "_")
@@ -384,14 +388,15 @@ class ModelBroadcast:
         torch.cuda.empty_cache()
 
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded
 
 
     def run_sd_inpainting(self, _json):
         pipe = self.init_sd_inpainting()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = _json["iters"]
         image_encoded = _json["image_encoded"]
         image_mask_encoded = _json["image_mask_encoded"]
@@ -400,19 +405,22 @@ class ModelBroadcast:
         _dir = f'{random.randint(0,1000000)}_{folder_name}_sd_inpainting'
         os.mkdir(_dir)
 
+        input_image_path = f"{_dir}/image.png"
+        input_mask_image_path = f"{_dir}/image_mask.png"
+
         image_bin = base64.b64decode(image_encoded)
         image_mask_bin = base64.b64decode(image_mask_encoded)
 
         #save images to files, then read them in from PIL.Image.open
-        with open(f"{_dir}/image.png", "wb") as f:
+        with open(input_image_path, "wb") as f:
             f.write(image_bin)
 
-        with open(f"{_dir}/image_mask.png", "wb") as f:
+        with open(input_mask_image_path, "wb") as f:
             f.write(image_mask_bin)
             
-        image = Image.open(f"{_dir}/image.png")
+        image = Image.open(input_image_path)
 
-        mask_image = Image.open(f"{_dir}/image_mask.png")
+        mask_image = Image.open(input_mask_image_path)
         mask_image = mask_image.resize((512,512))
 
         with autocast("cuda"):
@@ -433,15 +441,20 @@ class ModelBroadcast:
         gc.collect()
         torch.cuda.empty_cache()
 
+
+        os.remove(input_image_path)
+        os.remove(input_mask_image_path)
+
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded 
 
 
     def run_sd_img2img(self, _json):
         pipe = self.init_sd_img2img()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = _json["iters"]
         image_encoded = _json["image_encoded"]
         
@@ -452,10 +465,12 @@ class ModelBroadcast:
         #save images to files, then read them in from PIL.Image.open
         image_bin = base64.b64decode(image_encoded)
 
-        with open(f"{_dir}/image.jpg", "wb") as f:
+        input_image_path = f"{_dir}/image.jpg"
+
+        with open(input_image_path, "wb") as f:
             f.write(image_bin)
             
-        image = Image.open(f"{_dir}/image.jpg")
+        image = Image.open(input_image_path).convert("RGB")
 
         with autocast("cuda"):
             for i in range(int(iters)):
@@ -463,7 +478,7 @@ class ModelBroadcast:
                 generator = torch.Generator("cuda").manual_seed(seed)
                 
                 image = pipe(prompt=prompt, 
-                generator=generator, init_image=image, strength=0.7 ).images[0]
+                generator=generator, image=image, strength=0.7, safety_checker=None ).images[0]
 
                 image.save(f"{_dir}\\{i}_{seed}.jpg")
 
@@ -471,8 +486,11 @@ class ModelBroadcast:
         gc.collect()
         torch.cuda.empty_cache()
 
+        os.remove(input_image_path)
+
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded 
 
 
@@ -480,7 +498,7 @@ class ModelBroadcast:
     def run_instructpix2pix(self, _json):
         pipe = self.init_instructpix2pix()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = _json["iters"]
         image_encoded = _json["image_encoded"]
         
@@ -491,10 +509,12 @@ class ModelBroadcast:
         #save images to files, then read them in from PIL.Image.open
         image_bin = base64.b64decode(image_encoded)
 
-        with open(f"{_dir}/image.jpg", "wb") as f:
+        input_image_path = f"{_dir}/image.jpg"
+
+        with open(input_image_path, "wb") as f:
             f.write(image_bin)
             
-        image = Image.open(f"{_dir}/image.jpg").convert("RGB")
+        image = Image.open(input_image_path).convert("RGB")
 
         with autocast("cuda"):
             for i in range(int(iters)):
@@ -509,14 +529,17 @@ class ModelBroadcast:
         gc.collect()
         torch.cuda.empty_cache()
 
+        os.remove(input_image_path)
+
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded 
 
     def run_sd_outpainting(self, _json):
         pipe = self.init_sd_outpainting()
 
-        prompt = _json["prompt"]
+        prompt = _json["prompt"].strip()
         iters = int(_json["iters"])
         image_encoded = _json["image_encoded"]
         res = []
@@ -527,12 +550,14 @@ class ModelBroadcast:
 
         image_bin = base64.b64decode(image_encoded)
 
+        input_image_path = f"{_dir}/image.png"
+
         #save images to files, then read them in from PIL.Image.open
-        with open(f"{_dir}/image.png", "wb") as f:
+        with open(input_image_path, "wb") as f:
             f.write(image_bin)
  
         for i in range(iters):
-            enlarged_image = self._enlarge_512(pipe, prompt, f"{_dir}\\image.png")
+            enlarged_image = self._enlarge_512(pipe, prompt, input_image_path)
             Image.fromarray(enlarged_image.astype("uint8")).save(f"{_dir}\\big_outpainting_{i}.jpg")
 
         # os.remove(f"{_dir}\\image.png")
@@ -542,8 +567,11 @@ class ModelBroadcast:
         gc.collect()
         torch.cuda.empty_cache()
 
+        os.remove(input_image_path)
+
         images_encoded  = self._get_encoded_images_from_dir(_dir)
-        os.rmdir(_dir)
+        # os.rmdir(_dir)
+        shutil.rmtree(_dir)
         return images_encoded 
 
 
@@ -607,6 +635,8 @@ class ModelBroadcast:
                     transformed_img = "data:image/jpeg;base64," + base64.b64encode(data).decode("utf-8")
 
         os.remove(output_image_path)
+        os.remove(input_image_path)
+
         return [transformed_img] 
     
 
