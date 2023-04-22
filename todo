@@ -1,0 +1,55 @@
+my queue server doesnt have actual queues, just key value pairs. i need safer ways to store these and maybe an actual
+queue somewhere else ( i think the dicts have queues inside them)
+
+
+
+basic authentication 
+proper type hinting on these parts are required 
+
+optim
+-> changing python version
+-> using better models, ...
+
+cant keep all things inside venv, too much downlaod required 
+    keep track of requirements tho
+
+
+look into the different models available in the curr ESRGAN
+
+if flask is having memory issues with SD, perhaps offset it to a script iike with RealESR?
+
+
+        #download missing models for ESRGAN
+
+
+#write the glue function to join the queue server
+
+#extra shit is that the queue server can be distributed?
+
+flask function return types
+
+
+need to understand teh socket ctrl flow
+
+so your api id should be used to decide your channel
+
+setup a way to test multiple of these (get one working first)
+
+-------
+
+storing the objects directly in redis might not work
+
+some ways to go about it 
+-> key value adressing scheme
+-> periodic pickle
+-> trying lists out?
+
+the only reason im using redis is fault tolerance in case of downtimes. so just periodic job backups is enough 
+
+just need a periodic thread for saving and 
+    on program start fetch from the server
+
+how do we handle a crash? all the socketio connections will be gone (pin this). we need better structure in place first
+    -> dbs amd auth are required before this
+
+more importantly, start thinking about the DB stuff 
