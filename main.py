@@ -2,8 +2,11 @@ import sys, time, traceback
 import socketio
 from model_broadcast import ModelBroadcast
 
-Q_SERVER_URL = "http://localhost:3003"
-API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2ODMyNDI2OTIsImlhdCI6MTY4MDY1MDY5MiwiaWQiOjd9.nDqOfB9j-id0-3LMcF6YXCipya_ZBfALbM5Dc39tXfc"
+# Q_SERVER_URL = "http://localhost:3005"
+Q_SERVER_URL = "https://localhost:5000"
+# Q_SERVER_URL = "http://176.58.122.57:8000"
+# API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2ODU4NDg0NTAsImlhdCI6MTY4MzI1NjQ1MCwiaWQiOjF9.rrcb5sdaxcEm-dEApkJ6lEoDN9G1ro8I5CTng3UdXmI"
+API_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2ODU5NTg2NzcsImlhdCI6MTY4MzM2NjY3NywiaWQiOjF9.cPWJuH81xv7rBg1fiVa2xqWQF9pLWcN-y_Oz5oJ2p8s"
 
 BUSY  = False
 CONNECTED = False
@@ -11,7 +14,7 @@ ABORT = False
 AUTHENTICATED = False
 
 broadcast = ModelBroadcast(api_token = API_TOKEN , test=False)
-sio = socketio.Client(logger=True, engineio_logger=True)
+sio = socketio.Client(logger=True, engineio_logger=True, ssl_verify=False)
 
 @sio.event
 def connect():
@@ -78,7 +81,7 @@ def get_work_background_task():
             if not BUSY:
                 print("Sending out that i dont have work")
                 sio.emit('get work', {"_id": API_TOKEN})
-            for i in range(20) :  sio.sleep(1) 
+            for i in range(10) :  sio.sleep(1) 
         except Exception as e:
             print(e)
             sys.exit()
