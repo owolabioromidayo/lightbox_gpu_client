@@ -1,0 +1,5 @@
+socketio 
+PIL
+torch
+diffusers
+numpy
